@@ -1,0 +1,30 @@
+name: Docker Compose CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and run containers
+        run: |
+          docker compose up --build -d
+          docker ps
+
+      - name: Show status
+        run: |
+          echo "✅ Frontend: http://localhost:8081"
+          echo "✅ Backend:  http://localhost:3000"
+          echo "✅ Database: Running on postgres:5432 inside the container"
