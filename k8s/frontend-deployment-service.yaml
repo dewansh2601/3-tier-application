@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: burger-app
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: myburgerapp-frontend:latest # Make sure this image is loaded into Kind
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 80 # Nginx listens on port 80 inside the container
+        # Frontend typically doesn't need external env vars, as it talks to Nginx proxy
+        livenessProbe:
+          httpGet:
+            path: / # Health check for Nginx
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: / # Health check for Nginx
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: burger-app
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80 # Service port
+      targetPort: 80 # Container port
+      nodePort: 30080 # Choose a port > 30000. Access via localhost:30080
+  type: NodePort # Expose externally for easy local access

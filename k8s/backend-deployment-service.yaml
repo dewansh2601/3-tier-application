@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: burger-app
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  replicas: 1 # Start with 1 replica, scale up later
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: localhost:5000/myburgerapp-backend:latest # Corrected image path for Kind
+        imagePullPolicy: Never # Keep this if you load images into Kind
+        ports:
+        - containerPort: 3000
+        env:
+        # Keep DATABASE_URL for the entrypoint script's 'nc' check
+        - name: DATABASE_URL
+          value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/$(POSTGRES_DB)"
+        
+        # --- ADDED THESE ENVIRONMENT VARIABLES FOR YOUR NODE.JS APP ---
+        - name: DB_HOST
+          value: "postgres-service" # This is the Kubernetes Service name for PostgreSQL
+        - name: DB_PORT
+          value: "5432"             # PostgreSQL's default port
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              key: POSTGRES_USER
+              name: postgres-config
+        - name: DB_PASS # Your Node.js app expects 'DB_PASS' for the password
+          valueFrom:
+            secretKeyRef:
+              key: POSTGRES_PASSWORD # This is the key in your secret
+              name: postgres-secret
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              key: POSTGRES_DB
+              name: postgres-config
+        # --- END ADDED ENVIRONMENT VARIABLES ---
+
+        # Add other environment variables your backend needs (e.g., PORT if it uses it)
+        # - name: PORT
+        #   value: "3000"
+        #livenessProbe: # Check if the application is still running (commented out as requested)
+          #httpGet:
+            #path: /api/health
+            #port: 3000
+          #initialDelaySeconds: 15
+          #periodSeconds: 20
+        #readinessProbe: # Check if the application is ready to receive traffic (commented out as requested)
+          #httpGet:
+            #path: /api/health
+            #port: 3000
+          #initialDelaySeconds: 5
+          #periodSeconds: 10
+        resources:
+          requests:
+            memory: "512Mi" # Increased request
+            cpu: "200m"
+          limits:
+            memory: "1024Mi" # <--- IMPORTANT: INCREASED MEMORY LIMIT HERE
+            cpu: "500m"
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: burger-app
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: ClusterIP # Internal service only
