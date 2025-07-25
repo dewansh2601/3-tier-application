@@ -3,9 +3,10 @@ name: Deploy to KIND Kubernetes
 on:
   push:
     branches:
+      - development
       - main
       - master
-      - development
+  workflow_dispatch:
 
 jobs:
   kind-deploy:
@@ -18,7 +19,8 @@ jobs:
       K8S_NAMESPACE: burger-app
 
     steps:
-      - name: Checkout code
+      # -------------------- CI: Checkout & Build --------------------
+      - name: 🧾 Checkout source code
         uses: actions/checkout@v3
 
       - name: Generate Timestamp
