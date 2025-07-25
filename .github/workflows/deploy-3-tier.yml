@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Deploy to KIND Kubernetes
 
 on:
   push:
@@ -8,58 +8,51 @@ on:
       - development
 
 jobs:
-  build-deploy:
-    runs-on: ubuntu-latest
+  kind-deploy:
+    runs-on: self-hosted
 
     env:
       FRONTEND_IMAGE: dewansh2601/burger-frontend
       BACKEND_IMAGE: dewansh2601/burger-backend
-      PROJECT_DIR: ./  # root of your repo
+      PROJECT_DIR: ./
       K8S_NAMESPACE: burger-app
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Generate timestamp
+      - name: Generate Timestamp
         id: timestamp
         run: echo "TIMESTAMP=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
 
-      - name: Build Docker images
+      - name: Build Docker Images
         run: |
           docker build -t $FRONTEND_IMAGE:$TIMESTAMP $PROJECT_DIR/Frontend
           docker build -t $BACKEND_IMAGE:$TIMESTAMP $PROJECT_DIR/Backend
 
-      - name: Log in to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push Docker images
+      - name: Push Docker Images
         run: |
           docker push $FRONTEND_IMAGE:$TIMESTAMP
           docker push $BACKEND_IMAGE:$TIMESTAMP
 
-      - name: Update image tags in Kubernetes YAMLs
+      - name: Update Kubernetes YAMLs with new image tag
         run: |
           sed -i "s|image: .*/frontend:.*|image: $FRONTEND_IMAGE:$TIMESTAMP|" $PROJECT_DIR/k8s/frontend-deployment-service.yaml
           sed -i "s|image: .*/backend:.*|image: $BACKEND_IMAGE:$TIMESTAMP|" $PROJECT_DIR/k8s/backend-deployment-service.yaml
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: 'latest'
-
-      - name: Apply Kubernetes manifests to KIND
+      - name: Deploy to KIND cluster
         run: |
-          kubectl apply -f $PROJECT_DIR/k8s/
+          kubectl apply -f $PROJECT_DIR/k8s/ --validate=false
 
-      - name: Get access info
+      - name: Get Frontend Access Info
         run: |
           KIND_HOST=$(hostname -I | awk '{print $1}')
           FRONTEND_PORT=$(kubectl get svc frontend-service -n $K8S_NAMESPACE -o jsonpath='{.spec.ports[0].nodePort}')
-          echo "✅ App deployed successfully! Open in browser: http://${KIND_HOST}:${FRONTEND_PORT}"
+          echo "✅ App deployed successfully!"
+          echo "🌐 Access frontend at: http://$KIND_HOST:$FRONTEND_PORT"
