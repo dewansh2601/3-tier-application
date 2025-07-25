@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: myburgerapp-frontend:latest # Make sure this image is loaded into Kind
-        imagePullPolicy: Never
+        image: dewansh2601/burger-frontend:latest # Make sure this image is loaded into Kind
+        imagePullPolicy: Always
         ports:
         - containerPort: 80 # Nginx listens on port 80 inside the container
         # Frontend typically doesn't need external env vars, as it talks to Nginx proxy

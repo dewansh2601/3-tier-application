@@ -2,11 +2,11 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15
+    image: ${POSTGRES_IMAGE}
     environment:
-      POSTGRES_DB: burgerdb
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -14,19 +14,21 @@ services:
 
   backend:
     build: ./Backend
+    image: ${BACKEND_IMAGE}
     ports:
       - "3000:3000"
     depends_on:
       - postgres
     environment:
-      DB_NAME: burgerdb
-      DB_USER: myuser
-      DB_PASS: mypassword
-      DB_HOST: postgres
-      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
 
   frontend:
     build: ./Frontend
+    image: ${FRONTEND_IMAGE}
     ports:
       - "8081:80"
     depends_on:

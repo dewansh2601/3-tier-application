@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: localhost:5000/myburgerapp-backend:latest # Corrected image path for Kind
-        imagePullPolicy: Never # Keep this if you load images into Kind
+        image: dewansh2601/burger-backend:latest # Corrected image path for Kind
+        imagePullPolicy: Always # Keep this if you load images into Kind
         ports:
         - containerPort: 3000
         env:
