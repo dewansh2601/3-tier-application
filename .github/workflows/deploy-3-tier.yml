@@ -52,9 +52,4 @@ jobs:
         run: |
           kubectl apply -f $PROJECT_DIR/k8s/ --validate=false
 
-      - name: Get Frontend Access Info
-        run: |
-          KIND_HOST=$(hostname -I | awk '{print $1}')
-          FRONTEND_PORT=$(kubectl get svc frontend-service -n $K8S_NAMESPACE -o jsonpath='{.spec.ports[0].nodePort}')
-          echo "✅ App deployed successfully!"
-          echo "🌐 Access frontend at: http://$KIND_HOST:$FRONTEND_PORT"
+      
