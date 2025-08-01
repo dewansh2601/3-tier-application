@@ -19,37 +19,66 @@ jobs:
       K8S_NAMESPACE: burger-app
 
     steps:
-      # -------------------- CI: Checkout & Build --------------------
-      - name: 🧾 Checkout source code
-        uses: actions/checkout@v3
+    # -------------------- CI: Checkout & Timestamp --------------------
+    - name: 🧾 Checkout source code
+      uses: actions/checkout@v3
 
-      - name: Generate Timestamp
-        id: timestamp
-        run: echo "TIMESTAMP=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+    - name: 🕒 Generate build timestamp
+      id: timestamp
+      run: echo "TIMESTAMP=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
 
-      - name: Build Docker Images
-        run: |
-          docker build -t $FRONTEND_IMAGE:$TIMESTAMP $PROJECT_DIR/Frontend
-          docker build -t $BACKEND_IMAGE:$TIMESTAMP $PROJECT_DIR/Backend
+    # -------------------- Build & Push Docker Images --------------------
+    - name: 🛠️ Build Docker images
+      run: |
+        docker build -t $FRONTEND_IMAGE:$TIMESTAMP $PROJECT_DIR/Frontend
+        docker build -t $BACKEND_IMAGE:$TIMESTAMP $PROJECT_DIR/Backend
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: 🔐 Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push Docker Images
-        run: |
-          docker push $FRONTEND_IMAGE:$TIMESTAMP
-          docker push $BACKEND_IMAGE:$TIMESTAMP
+    - name: 📤 Push Docker images
+      run: |
+        docker push $FRONTEND_IMAGE:$TIMESTAMP
+        docker push $BACKEND_IMAGE:$TIMESTAMP
 
-      - name: Update Kubernetes YAMLs with new image tag
-        run: |
-          sed -i "s|image: .*/frontend:.*|image: $FRONTEND_IMAGE:$TIMESTAMP|" $PROJECT_DIR/k8s/frontend-deployment-service.yaml
-          sed -i "s|image: .*/backend:.*|image: $BACKEND_IMAGE:$TIMESTAMP|" $PROJECT_DIR/k8s/backend-deployment-service.yaml
+    # -------------------- K8s YAML Update --------------------
+    - name: 📝 Update Kubernetes YAMLs with new image tag
+      run: |
+        sed -i "s|image: ${FRONTEND_IMAGE}:.*|image: ${FRONTEND_IMAGE}:${TIMESTAMP}|" $PROJECT_DIR/k8s/frontend-deployment-service.yaml
+        sed -i "s|image: ${BACKEND_IMAGE}:.*|image: ${BACKEND_IMAGE}:${TIMESTAMP}|" $PROJECT_DIR/k8s/backend-deployment-service.yaml
 
-      - name: Deploy to KIND cluster
-        run: |
-          kubectl apply -f $PROJECT_DIR/k8s/ --validate=false
+    # -------------------- K8s Namespace + Deployment --------------------
+    - name: 📛 Create namespace if not exists
+      run: |
+        kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
-      
+    - name: 🚀 Deploy manifests to KIND cluster
+      run: |
+        kubectl apply -f $PROJECT_DIR/k8s/ --validate=false
+
+    # -------------------- K8s Health Check --------------------
+    - name: ⏳ Wait for all pods to be ready
+      timeout-minutes: 3
+      run: |
+        echo "Waiting for all pods to be ready in namespace: $K8S_NAMESPACE..."
+        for i in {1..36}; do
+          NOT_READY=$(kubectl get pods -n $K8S_NAMESPACE --no-headers | awk '$2 != "1/1" || $3 != "Running"')
+          if [ -z "$NOT_READY" ]; then
+            echo "✅ All pods are in Running and Ready state."
+            break
+          fi
+          echo "Still waiting on these pods:"
+          echo "$NOT_READY"
+          sleep 5
+        done
+
+        echo "Final state:"
+        kubectl get all -n $K8S_NAMESPACE
+
+    # -------------------- Port Forward Ingress (Background) --------------------
+    - name: 🔁 Port forward ingress (8083 -> 80)
+      run: |
+        nohup kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8083:80 > /dev/null 2>&1 &
