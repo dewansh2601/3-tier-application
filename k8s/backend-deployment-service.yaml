@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: dewansh2601/burger-backend:latest # Corrected image path for Kind
+        image: dewansh2601/burger-backend:20250801060420
         imagePullPolicy: Always # Keep this if you load images into Kind
         ports:
         - containerPort: 3000

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: dewansh2601/burger-frontend:latest # Make sure this image is loaded into Kind
+        image: dewansh2601/burger-frontend:20250801060420
         imagePullPolicy: Always
         ports:
         - containerPort: 80 # Nginx listens on port 80 inside the container
@@ -46,5 +46,5 @@ spec:
     - protocol: TCP
       port: 80 # Service port
       targetPort: 80 # Container port
-      nodePort: 30080 # Choose a port > 30000. Access via localhost:30080
-  type: NodePort # Expose externally for easy local access
+      # nodePort: 30080 # Choose a port > 30000. Access via localhost:30080
+  type: ClusterIP # Expose externally for easy local access
